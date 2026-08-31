@@ -22,9 +22,16 @@ def get_db():
 
 def ensure_coin_exists(db: Session, coingecko_id: str, symbol: str, name: str) -> int:
     """
-    Inserts a coin if it does not exist, and returns its database ID.
-    Idempotent using ON CONFLICT.
+    Returns the database ID of an existing coin, or inserts it idempotently.
+    Checks existing records first to prevent burning the SERIAL sequence.
     """
+    query_select = text("""
+        SELECT id FROM coins WHERE coingecko_id = :coingecko_id;
+    """)
+    result = db.execute(query_select, {"coingecko_id": coingecko_id}).fetchone()
+    if result:
+        return result[0]
+
     query_insert = text("""
         INSERT INTO coins (coingecko_id, symbol, name)
         VALUES (:coingecko_id, :symbol, :name)
@@ -37,9 +44,6 @@ def ensure_coin_exists(db: Session, coingecko_id: str, symbol: str, name: str) -
     })
     db.commit()
 
-    query_select = text("""
-        SELECT id FROM coins WHERE coingecko_id = :coingecko_id;
-    """)
     result = db.execute(query_select, {"coingecko_id": coingecko_id}).fetchone()
     if result:
         return result[0]

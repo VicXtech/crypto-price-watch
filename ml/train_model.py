@@ -59,9 +59,12 @@ def train_all():
                 )
                 continue
 
-            # Drop rows where critical feature elements are missing
+            # Convert columns to numeric float (from Decimal) and drop rows where critical features are missing
             required_cols = ["pct_change_1h", "volatility_24h", "current_price", "ema_24h"]
-            df_clean = df.dropna(subset=required_cols).copy()
+            df_clean = df.copy()
+            for col in required_cols:
+                df_clean[col] = pd.to_numeric(df_clean[col], errors="coerce")
+            df_clean = df_clean.dropna(subset=required_cols).copy()
 
             if len(df_clean) < settings.MIN_SAMPLES_TRAIN:
                 logger.warning(
@@ -92,13 +95,14 @@ def train_all():
             trained_count += 1
             logger.info(f"Model successfully trained for {name_or_symbol(coin)}.")
 
+        # Ensure the output directory and model file exist on disk
+        os.makedirs(os.path.dirname(settings.MODEL_PATH), exist_ok=True)
+        joblib.dump(models_dict, settings.MODEL_PATH)
+
         if trained_count > 0:
-            # Ensure the output directory exists
-            os.makedirs(os.path.dirname(settings.MODEL_PATH), exist_ok=True)
-            joblib.dump(models_dict, settings.MODEL_PATH)
             logger.info(f"All done! Saved {trained_count} trained models to {settings.MODEL_PATH}")
         else:
-            logger.info("No models were trained/updated in this run.")
+            logger.info(f"No models were trained/updated in this run. Saved cache (empty/existing) to {settings.MODEL_PATH}")
 
     finally:
         db.close()

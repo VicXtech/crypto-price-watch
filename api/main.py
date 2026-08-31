@@ -113,7 +113,6 @@ def ingest_prices(payload: Union[List[Dict[str, Any]], Dict[str, Any]], db: Sess
                         "coingecko_id": coingecko_id,
                         "symbol": symbol,
                         "current_price": current_price,
-                        "price_usd": current_price,
                         "anomaly_score": score,
                         "detected_at": collected_at.isoformat()
                     })

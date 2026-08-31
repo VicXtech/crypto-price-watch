@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS coins (
 
 CREATE TABLE IF NOT EXISTS price_history (
     id SERIAL PRIMARY KEY,
-    coin_id INTEGER REFERENCES coins (id) ON DELETE CASCADE,
+    coin_id INTEGER REFERENCES coins (id) ON DELETE CASCADE ON UPDATE CASCADE,
     current_price NUMERIC(18, 8) NOT NULL,
     market_cap NUMERIC(20, 2),
     total_volume NUMERIC(20, 2),
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS price_history (
 
 CREATE TABLE IF NOT EXISTS price_features (
     id SERIAL PRIMARY KEY,
-    coin_id INTEGER REFERENCES coins (id) ON DELETE CASCADE,
+    coin_id INTEGER REFERENCES coins (id) ON DELETE CASCADE ON UPDATE CASCADE,
     collected_at TIMESTAMPTZ NOT NULL,
     sma_6h NUMERIC(18, 8), -- SMA 6h
     ema_24h NUMERIC(18, 8), -- EMA 24h
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS price_features (
 
 CREATE TABLE IF NOT EXISTS anomalies (
     id SERIAL PRIMARY KEY,
-    coin_id INTEGER REFERENCES coins (id) ON DELETE CASCADE,
+    coin_id INTEGER REFERENCES coins (id) ON DELETE CASCADE ON UPDATE CASCADE,
     detected_at TIMESTAMPTZ NOT NULL DEFAULT now (),
     current_price NUMERIC(18, 8) NOT NULL,
     anomaly_score NUMERIC(6, 4), -- Isolation Forest anomaly score

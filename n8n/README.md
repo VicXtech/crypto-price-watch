@@ -53,7 +53,7 @@ Este fluxo recebe os dados de anomalia do Fluxo 1, formata a mensagem e envia um
 
      A criptomoeda *{{ $json.symbol }}* ({{ $json.coingecko_id }}) apresentou um comportamento de preço fora do comum!
 
-     💵 *Preço no Alerta:* ${{ ($json.current_price || $json.price_usd).toFixed(4) }}
+     💵 *Preço no Alerta:* ${{ $json.current_price.toFixed(4) }}
      📊 *Score do Isolation Forest:* {{ $json.anomaly_score.toFixed(4) }}
      🕒 *Horário (Brasília):* {{ new Date($json.detected_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) }}
 

@@ -112,7 +112,6 @@ O banco de dados armazena os dados crus separadamente das métricas calculadas e
         "coingecko_id": "bitcoin",
         "symbol": "BTC",
         "current_price": 68520.10,
-        "price_usd": 68520.10,
         "anomaly_score": -0.0425,
         "detected_at": "2026-08-25T20:20:00Z"
       }

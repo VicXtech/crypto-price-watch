@@ -68,6 +68,7 @@ volumes:
 networks:
   crypto_internal:
     driver: bridge
+    name: crypto_internal
   automation:
     external: true
     name: automation
