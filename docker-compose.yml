@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: crypto_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crypto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crypto_dev_password}
+      POSTGRES_DB: crypto_price_watch
+    ports:
+      - "5432:5432"
+    volumes:
+      - crypto_pg_data:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-crypto} -d crypto_price_watch" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crypto_internal
+      - automation # rede já existente, compartilhada com n8n e WAHA
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: crypto_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crypto}:${POSTGRES_PASSWORD:-crypto_dev_password}@postgres:5432/crypto_price_watch
+      PYTHONPATH: /app
+    ports:
+      - "8001:8000"
+    volumes:
+      - .:/app
+    networks:
+      - crypto_internal
+      - automation # o n8n vai chamar http://crypto_api:8000
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: crypto_dashboard
+    command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crypto}:${POSTGRES_PASSWORD:-crypto_dev_password}@postgres:5432/crypto_price_watch
+      PYTHONPATH: /app
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    networks:
+      - crypto_internal
+      - automation
+
+volumes:
+  crypto_pg_data:
+
+networks:
+  crypto_internal:
+    driver: bridge
+  automation:
+    external: true
+    name: automation
