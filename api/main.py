@@ -92,14 +92,21 @@ def ingest_prices(payload: Union[List[Dict[str, Any]], Dict[str, Any]], db: Sess
                 )
 
                 # Step 2f: Run ML inference
-                is_anomaly, score = run_inference(
-                    coingecko_id,
-                    current_price,
-                    features["sma_6h"],
-                    features["ema_24h"],
-                    features["pct_change_1h"],
-                    features["volatility_24h"]
-                )
+                if features.get("time_gap_detected"):
+                    logger.info(
+                        f"Downtime gap detected (>2h) for {coingecko_id}. "
+                        "Skipping anomaly inference for this resumed point to prevent false positives."
+                    )
+                    is_anomaly, score = False, None
+                else:
+                    is_anomaly, score = run_inference(
+                        coingecko_id,
+                        current_price,
+                        features["sma_6h"],
+                        features["ema_24h"],
+                        features["pct_change_1h"],
+                        features["volatility_24h"]
+                    )
 
                 if is_anomaly:
                     # Save anomaly to the database

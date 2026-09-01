@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 from api.config import settings
 
 def calculate_features_for_latest(price_df: pd.DataFrame) -> dict:
@@ -28,6 +28,18 @@ def calculate_features_for_latest(price_df: pd.DataFrame) -> dict:
     # Check minimum samples threshold
     if len(price_df) < settings.MIN_SAMPLES_FEATURES:
         return default_result
+
+    # Detect if there was a downtime gap (>2h) between this coleta and the previous one
+    time_gap_detected = False
+    if len(price_df) >= 2:
+        try:
+            prev_row = price_df.iloc[-2]
+            t_latest = pd.to_datetime(latest_row["collected_at"])
+            t_prev = pd.to_datetime(prev_row["collected_at"])
+            if (t_latest - t_prev) > timedelta(hours=2):
+                time_gap_detected = True
+        except Exception:
+            pass
 
     try:
         # Convert prices to numeric
@@ -59,7 +71,8 @@ def calculate_features_for_latest(price_df: pd.DataFrame) -> dict:
             "ema_24h": float(latest_ema) if not pd.isna(latest_ema) else None,
             "pct_change_1h": float(latest_pct) if not pd.isna(latest_pct) and not np.isinf(latest_pct) else None,
             "volatility_24h": float(latest_vol) if not pd.isna(latest_vol) else None,
-            "collected_at": latest_row["collected_at"]
+            "collected_at": latest_row["collected_at"],
+            "time_gap_detected": time_gap_detected
         }
         return result
 
