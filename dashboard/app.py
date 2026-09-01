@@ -5,6 +5,8 @@ import numpy as np
 import plotly.graph_objects as go
 from sqlalchemy import create_engine, text
 from datetime import datetime, timedelta, timezone
+import urllib.request
+import json
 
 def to_brasilia_tz(series: pd.Series) -> pd.Series:
     """Converts a pandas datetime Series to America/Sao_Paulo timezone."""
@@ -12,6 +14,53 @@ def to_brasilia_tz(series: pd.Series) -> pd.Series:
     if dt.dt.tz is None:
         return dt.dt.tz_localize("UTC").dt.tz_convert("America/Sao_Paulo")
     return dt.dt.tz_convert("America/Sao_Paulo")
+
+def format_crypto_price(val: float, currency_prefix: str = "$") -> str:
+    """
+    Formats crypto prices gracefully for both large assets (BTC/ETH)
+    and micro-cap tokens (PEPE) without truncation to 0.0000.
+    """
+    if val is None or pd.isna(val):
+        return "-"
+    val = float(val)
+    if abs(val) >= 1.0:
+        return f"{currency_prefix} {val:,.2f}"
+    elif abs(val) >= 0.01:
+        return f"{currency_prefix} {val:,.4f}"
+    elif abs(val) >= 0.0001:
+        return f"{currency_prefix} {val:,.6f}"
+    else:
+        # For micro tokens like PEPE (e.g. 0.00000356)
+        formatted = f"{val:.8f}".rstrip("0")
+        if formatted == "0.":
+            formatted = f"{val:.10f}"
+        return f"{currency_prefix} {formatted}"
+
+@st.cache_data(ttl=300)
+def get_usd_brl_rate() -> float:
+    """
+    Fetches the live USD to BRL exchange rate from AwesomeAPI with automatic fallback.
+    Cached for 5 minutes.
+    """
+    try:
+        req = urllib.request.Request(
+            "https://economia.awesomeapi.com.br/last/USD-BRL",
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            data = json.loads(resp.read().decode())
+            return float(data["USDBRL"]["bid"])
+    except Exception:
+        try:
+            req = urllib.request.Request(
+                "https://api.frankfurter.app/latest?from=USD&to=BRL",
+                headers={"User-Agent": "Mozilla/5.0"}
+            )
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                data = json.loads(resp.read().decode())
+                return float(data["rates"]["BRL"])
+        except Exception:
+            return 5.15
 
 # Streamlit Page Setup
 st.set_page_config(
@@ -21,7 +70,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling (Dark Glassmorphic Theme Vibes)
+# Custom Styling
 st.markdown("""
 <style>
     .reportview-container {
@@ -53,15 +102,13 @@ def get_db_engine():
         "DATABASE_URL", 
         "postgresql://crypto:crypto_dev_password@localhost:5432/crypto_price_watch"
     )
-    # If running in local docker setup, map host 'postgres' to 'localhost' if running streamlit locally
-    # but when run inside docker compose, the environment variable is already correct.
     return create_engine(db_url)
 
 engine = get_db_engine()
 
 # Fetch active coins from DB
 def fetch_coins():
-    query = "SELECT id, coingecko_id, symbol, name FROM coins WHERE active = TRUE ORDER BY name;"
+    query = "SELECT id, coingecko_id, symbol, name FROM coins WHERE active = TRUE ORDER BY id ASC;"
     with engine.connect() as conn:
         return pd.read_sql(query, conn)
 
@@ -89,7 +136,7 @@ def fetch_price_data(coin_id, days):
     return df
 
 # Fetch recent anomalies table
-def fetch_recent_anomalies(limit=10):
+def fetch_recent_anomalies(limit=15):
     query = """
         SELECT c.name, c.symbol, a.current_price, a.anomaly_score, a.detected_at, a.alert_sent
         FROM anomalies a
@@ -129,7 +176,24 @@ try:
         "Todo o Histórico": 365
     }
     days = days_map[time_window_label]
+
+    # Currency Conversion Selector
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("💱 Moeda de Exibição")
+    currency_mode = st.sidebar.radio(
+        "Visualizar valores em:",
+        options=["USD ($)", "BRL (R$)"],
+        index=0,
+        horizontal=True
+    )
     
+    is_brl = currency_mode == "BRL (R$)"
+    curr_prefix = "R$" if is_brl else "$"
+    usd_brl_rate = get_usd_brl_rate() if is_brl else 1.0
+    
+    if is_brl:
+        st.sidebar.info(f"💵 Cotação Comercial: **R$ {usd_brl_rate:.4f}** / USD")
+
     # Refresh button
     st.sidebar.markdown("---")
     if st.sidebar.button("🔄 Atualizar Dados"):
@@ -141,19 +205,36 @@ try:
     if data_df.empty:
         st.info(f"Sem dados de preço para {selected_coin['name']} no período selecionado.")
     else:
+        # Apply conversion multiplier
+        multiplier = usd_brl_rate if is_brl else 1.0
+        data_df["display_price"] = data_df["current_price"] * multiplier
+        
+        if "ema_24h" in data_df.columns and data_df["ema_24h"].notna().any():
+            data_df["display_ema_24h"] = data_df["ema_24h"] * multiplier
+        else:
+            data_df["display_ema_24h"] = None
+
+        if "sma_6h" in data_df.columns and data_df["sma_6h"].notna().any():
+            data_df["display_sma_6h"] = data_df["sma_6h"] * multiplier
+        else:
+            data_df["display_sma_6h"] = None
+
+        # Build formatted text columns for hover tooltips (prevents 0.0000 on low-value tokens)
+        data_df["price_hover"] = data_df["display_price"].apply(lambda v: format_crypto_price(v, curr_prefix))
+        if data_df["display_ema_24h"] is not None:
+            data_df["ema_hover"] = data_df["display_ema_24h"].apply(lambda v: format_crypto_price(v, curr_prefix))
+        
         # Latest data summary metrics
         latest = data_df.iloc[-1]
         
-        # Calculate metric values
-        price = latest["current_price"]
+        price = latest["display_price"]
         pct_change = latest["pct_change_1h"] if pd.notna(latest["pct_change_1h"]) else 0.0
         volatility = latest["volatility_24h"] if pd.notna(latest["volatility_24h"]) else 0.0
         
         # Determine anomaly status of latest point
         is_latest_anomaly = pd.notna(latest["anomaly_score"])
         
-        # Format displays
-        price_fmt = f"${price:,.2f}" if price >= 1.0 else f"${price:,.6f}"
+        price_fmt = format_crypto_price(price, curr_prefix)
         pct_fmt = f"{pct_change * 100:+.2f}%"
         vol_fmt = f"{volatility * 100:.2f}%"
         
@@ -162,13 +243,13 @@ try:
         
         with col1:
             st.metric(
-                label="Preço Atual",
+                label=f"Preço Atual ({curr_prefix})",
                 value=price_fmt
             )
             
         with col2:
             st.metric(
-                label="Variação 1h",
+                label="Variação Período",
                 value=pct_fmt,
                 delta=pct_fmt
             )
@@ -197,7 +278,7 @@ try:
         st.markdown("---")
         
         # Graph Section
-        st.subheader("Gráfico de Histórico de Preço e Anomalias")
+        st.subheader(f"Gráfico de Histórico de Preço e Anomalias ({curr_prefix})")
         
         # Plotly chart setup
         fig = go.Figure()
@@ -205,35 +286,42 @@ try:
         # Price Line
         fig.add_trace(go.Scatter(
             x=data_df["collected_at"],
-            y=data_df["current_price"],
+            y=data_df["display_price"],
             mode='lines',
-            name='Preço USD',
+            name=f'Preço ({curr_prefix})',
             line=dict(color='#00c0f2', width=2),
-            hovertemplate='Data: %{x|%d/%m/%Y %H:%M:%S}<br>Preço: $%{y:,.4f}'
+            customdata=data_df["price_hover"],
+            hovertemplate='Data: %{x|%d/%m/%Y %H:%M:%S}<br>Preço: %{customdata}<extra></extra>'
         ))
         
         # EMA Line (Optional overlay)
-        if "ema_24h" in data_df.columns and not data_df["ema_24h"].isna().all():
+        if data_df["display_ema_24h"] is not None and not data_df["display_ema_24h"].isna().all():
             fig.add_trace(go.Scatter(
                 x=data_df["collected_at"],
-                y=data_df["ema_24h"],
+                y=data_df["display_ema_24h"],
                 mode='lines',
-                name='EMA (24h)',
+                name=f'EMA 24h ({curr_prefix})',
                 line=dict(color='#ff9900', width=1.5, dash='dash'),
-                hovertemplate='Data: %{x|%d/%m/%Y %H:%M:%S}<br>EMA: $%{y:,.4f}'
+                customdata=data_df["ema_hover"],
+                hovertemplate='Data: %{x|%d/%m/%Y %H:%M:%S}<br>EMA 24h: %{customdata}<extra></extra>'
             ))
 
         # Anomalies Markers
         anomaly_df = data_df[data_df["anomaly_score"].notna()]
         if not anomaly_df.empty:
+            custom_anomaly = np.stack(
+                (anomaly_df["price_hover"], anomaly_df["anomaly_score"]), 
+                axis=-1
+            )
             fig.add_trace(go.Scatter(
                 x=anomaly_df["collected_at"],
-                y=anomaly_df["current_price"],
+                y=anomaly_df["display_price"],
                 mode='markers',
                 name='Anomalias Detectadas',
-                marker=dict(color='#ff3333', size=9, symbol='circle', line=dict(color='white', width=1)),
-                hovertemplate='<b>ANOMALIA DETECTADA</b><br>Data: %{x|%d/%m/%Y %H:%M:%S}<br>Preço: $%{y:,.4f}<br>Score: %{customdata:.4f}',
-                customdata=anomaly_df["anomaly_score"]
+                marker=dict(color='#ff3333', size=10, symbol='circle-open-dot', line=dict(color='#ffffff', width=2)),
+                customdata=custom_anomaly,
+                # Note: <extra></extra> suppresses the secondary trace name box
+                hovertemplate='<b>⚠️ ANOMALIA DETECTADA</b><br>Data: %{x|%d/%m/%Y %H:%M:%S}<br>Preço: %{customdata[0]}<br>Score: %{customdata[1]:.4f}<extra></extra>'
             ))
 
         # Chart Layout Customization
@@ -243,8 +331,15 @@ try:
             paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=20, r=20, t=20, b=20),
             height=500,
+            hoverlabel=dict(
+                bgcolor="#1e222b",
+                font_size=13,
+                font_family="sans-serif",
+                font_color="#ffffff",
+                bordercolor="#00c0f2"
+            ),
             xaxis=dict(showgrid=True, gridcolor='#222730'),
-            yaxis=dict(showgrid=True, gridcolor='#222730', tickformat="$,.2f"),
+            yaxis=dict(showgrid=True, gridcolor='#222730', tickprefix=f"{curr_prefix} "),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         
@@ -259,10 +354,12 @@ try:
     if anomalies_table_df.empty:
         st.info("Nenhuma anomalia registrada no banco de dados até o momento.")
     else:
-        # Format table values for nice display
+        multiplier = usd_brl_rate if is_brl else 1.0
         anomalies_display = anomalies_table_df.copy()
-        anomalies_display["current_price"] = anomalies_display["current_price"].apply(
-            lambda val: f"${val:,.2f}" if val >= 1.0 else f"${val:,.6f}"
+        
+        # Convert and format current price in selected currency
+        anomalies_display["current_price"] = (anomalies_display["current_price"] * multiplier).apply(
+            lambda val: format_crypto_price(val, curr_prefix)
         )
         anomalies_display["detected_at"] = to_brasilia_tz(anomalies_display["detected_at"]).dt.strftime('%d/%m/%Y %H:%M:%S')
         anomalies_display["anomaly_score"] = anomalies_display["anomaly_score"].round(4)
@@ -272,7 +369,7 @@ try:
         
         # Rename columns for localized Portuguese headers
         anomalies_display.columns = [
-            "Moeda", "Símbolo", "Preço no Alerta", "Score ML", "Data/Hora (Brasília)", "Alerta"
+            "Moeda", "Símbolo", f"Preço no Alerta ({curr_prefix})", "Score ML", "Data/Hora (Brasília)", "Alerta"
         ]
         
         st.dataframe(anomalies_display, use_container_width=True)

@@ -2,6 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 import logging
 from typing import Dict, Any, List, Union
+from zoneinfo import ZoneInfo
+
+BRASILIA_TZ = ZoneInfo("America/Sao_Paulo")
 
 from api.config import settings
 from api.db import (
@@ -108,13 +111,15 @@ def ingest_prices(payload: Union[List[Dict[str, Any]], Dict[str, Any]], db: Sess
                         score,
                         alert_sent=False
                     )
+                    detected_at_sp = collected_at.astimezone(BRASILIA_TZ)
                     anomalies_detected.append({
                         "anomaly_id": anomaly_id,
                         "coingecko_id": coingecko_id,
                         "symbol": symbol,
                         "current_price": current_price,
                         "anomaly_score": score,
-                        "detected_at": collected_at.isoformat()
+                        "detected_at": collected_at.isoformat(),
+                        "detected_at_brasilia": detected_at_sp.strftime("%d/%m/%Y %H:%M:%S")
                     })
             else:
                 logger.info(
