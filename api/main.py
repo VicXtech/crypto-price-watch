@@ -13,7 +13,8 @@ from api.db import (
     insert_price_history,
     get_recent_prices_df,
     insert_features,
-    insert_anomaly
+    insert_anomaly,
+    mark_anomaly_alert_sent
 )
 from api.etl import normalize_prices
 from api.features import calculate_features_for_latest
@@ -116,7 +117,7 @@ def ingest_prices(payload: Union[List[Dict[str, Any]], Dict[str, Any]], db: Sess
                         collected_at,
                         current_price,
                         score,
-                        alert_sent=False
+                        alert_sent=False  # Initial state: pending delivery confirmation from n8n
                     )
                     detected_at_sp = collected_at.astimezone(BRASILIA_TZ)
                     anomalies_detected.append({
@@ -167,3 +168,16 @@ def train_models(background_tasks: BackgroundTasks):
     logger.info("Model training requested.")
     background_tasks.add_task(bg_train_task)
     return {"status": "training_started", "message": "Models training has been scheduled in the background."}
+
+@app.post("/anomalies/{anomaly_id}/acknowledge")
+def acknowledge_anomaly(anomaly_id: int, db: Session = Depends(get_db)):
+    """
+    Called by n8n after the WhatsApp message has been successfully sent.
+    Updates alert_sent = TRUE in the anomalies table.
+    """
+    success = mark_anomaly_alert_sent(db, anomaly_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Anomaly record not found")
+    logger.info(f"Anomaly {anomaly_id} successfully acknowledged as sent by n8n.")
+    return {"status": "success", "anomaly_id": anomaly_id, "alert_sent": True}
+

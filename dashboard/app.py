@@ -70,27 +70,161 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling
+# Custom Styling (Dark Glassmorphic Theme with Uniform Height Cards & Interactive Reload Button)
 st.markdown("""
 <style>
     .reportview-container {
         background: #0e1117;
     }
-    .metric-card {
-        background-color: #1e222b;
-        border-radius: 10px;
-        padding: 15px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        border-left: 5px solid #00c0f2;
+    
+    /* 1. Metric Cards: Exact Same Height, Centered & Normal Default Cursor */
+    [data-testid="stMetric"] {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        background: #161922 !important;
+        height: 145px !important;
+        min-height: 145px !important;
+        max-height: 145px !important;
+        padding: 16px 12px !important;
+        border-radius: 12px !important;
+        border: 1px solid #262b38 !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+        width: 100% !important;
+        cursor: default !important;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
     }
-    .metric-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #ffffff;
+    [data-testid="stMetric"]:hover {
+        border-color: #00c0f2 !important;
+        box-shadow: 0 4px 20px rgba(0, 192, 242, 0.2) !important;
+        cursor: default !important;
     }
-    .metric-label {
-        font-size: 14px;
-        color: #8a9ba8;
+    [data-testid="stMetric"] * {
+        cursor: default !important;
+        user-select: none !important;
+    }
+    [data-testid="stMetricLabel"] {
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+        text-align: center !important;
+        cursor: default !important;
+    }
+    [data-testid="stMetricLabel"] p {
+        text-align: center !important;
+        width: 100% !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        color: #94a3b8 !important;
+        margin: 0 !important;
+        cursor: default !important;
+    }
+    [data-testid="stMetricValue"] {
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+        text-align: center !important;
+        margin: 4px 0 !important;
+        cursor: default !important;
+    }
+    [data-testid="stMetricValue"] div {
+        text-align: center !important;
+        font-size: 26px !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        cursor: default !important;
+    }
+    [data-testid="stMetricDelta"] {
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+        text-align: center !important;
+        cursor: default !important;
+    }
+    [data-testid="stMetricDelta"] div {
+        text-align: center !important;
+        cursor: default !important;
+    }
+
+    /* 2. Sidebar: Centering for Radio Buttons & Selectable Options */
+    [data-testid="stSidebar"] [data-testid="stRadio"],
+    [data-testid="stSidebar"] [data-testid="stRadio"] > div,
+    [data-testid="stSidebar"] div[role="radiogroup"],
+    div[data-testid="stRadio"] div[role="radiogroup"] {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        gap: 28px !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] label,
+    div[data-testid="stRadio"] div[role="radiogroup"] label {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 !important;
+        cursor: pointer !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] label p,
+    div[data-testid="stRadio"] div[role="radiogroup"] label p {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: #ffffff !important;
+        text-align: center !important;
+    }
+
+    /* 3. Reload Button: Dark Card Styling, Balanced Size (17px bold), Turns Solid Blue on Hover! */
+    [data-testid="stSidebar"] div[data-testid="stButton"],
+    div[data-testid="stButton"] {
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+        margin-top: 14px !important;
+    }
+    [data-testid="stSidebar"] div[data-testid="stButton"] > button,
+    div[data-testid="stButton"] > button {
+        width: 100% !important;
+        min-height: 50px !important;
+        background: #161922 !important;
+        color: #00c0f2 !important;
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        padding: 12px 18px !important;
+        border: 1px solid #262b38 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+        letter-spacing: 0.3px !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        cursor: pointer !important;
+    }
+    [data-testid="stSidebar"] div[data-testid="stButton"] > button p,
+    div[data-testid="stButton"] > button p {
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        color: inherit !important;
+    }
+    [data-testid="stSidebar"] div[data-testid="stButton"] > button:hover,
+    div[data-testid="stButton"] > button:hover {
+        background: linear-gradient(135deg, #0284c7 0%, #00c0f2 100%) !important;
+        border: 1px solid #00c0f2 !important;
+        color: #ffffff !important;
+        box-shadow: 0 6px 26px rgba(0, 192, 242, 0.7) !important;
+        transform: translateY(-2px) !important;
+    }
+    [data-testid="stSidebar"] div[data-testid="stButton"] > button:hover p,
+    div[data-testid="stButton"] > button:hover p {
+        color: #ffffff !important;
+    }
+    [data-testid="stSidebar"] div[data-testid="stButton"] > button:active,
+    div[data-testid="stButton"] > button:active {
+        transform: translateY(0px) !important;
+        box-shadow: 0 2px 10px rgba(0, 192, 242, 0.5) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -136,9 +270,9 @@ def fetch_price_data(coin_id, days):
     return df
 
 # Fetch recent anomalies table
-def fetch_recent_anomalies(limit=15):
+def fetch_recent_anomalies(limit=30):
     query = """
-        SELECT c.name, c.symbol, a.current_price, a.anomaly_score, a.detected_at, a.alert_sent
+        SELECT a.id, c.name, c.symbol, a.current_price, a.anomaly_score, a.detected_at, a.alert_sent
         FROM anomalies a
         JOIN coins c ON a.coin_id = c.id
         ORDER BY a.detected_at DESC
@@ -177,15 +311,19 @@ try:
     }
     days = days_map[time_window_label]
 
-    # Currency Conversion Selector
+    # Currency Conversion Selector (Larger Centered Title, No Subtitle, Centered Radios)
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💱 Moeda de Exibição")
-    currency_mode = st.sidebar.radio(
-        "Visualizar valores em:",
-        options=["USD ($)", "BRL (R$)"],
-        index=0,
-        horizontal=True
-    )
+    st.sidebar.markdown("<h3 style='text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #ffffff;'>Moeda de Exibição</h3>", unsafe_allow_html=True)
+    _, col_radio, _ = st.sidebar.columns([1, 4.5, 1])
+    with col_radio:
+        currency_mode = st.radio(
+            label="Moeda de Exibição",
+            options=["USD ($)", "BRL (R$)"],
+            index=0,
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+
     
     is_brl = currency_mode == "BRL (R$)"
     curr_prefix = "R$" if is_brl else "$"
@@ -194,9 +332,9 @@ try:
     if is_brl:
         st.sidebar.info(f"💵 Cotação Comercial: **R$ {usd_brl_rate:.4f}** / USD")
 
-    # Refresh button
+    # Refresh Button (Card-like styling, larger text, full solid blue on hover)
     st.sidebar.markdown("---")
-    if st.sidebar.button("🔄 Atualizar Dados"):
+    if st.sidebar.button("Atualizar Dados", use_container_width=True):
         st.cache_data.clear()
         
     # Main Dashboard Page Content
@@ -238,7 +376,7 @@ try:
         pct_fmt = f"{pct_change * 100:+.2f}%"
         vol_fmt = f"{volatility * 100:.2f}%"
         
-        # Display 4 Metrics columns
+        # Display 4 Metrics columns (All equal height, centered, normal cursor)
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -320,7 +458,6 @@ try:
                 name='Anomalias Detectadas',
                 marker=dict(color='#ff3333', size=10, symbol='circle-open-dot', line=dict(color='#ffffff', width=2)),
                 customdata=custom_anomaly,
-                # Note: <extra></extra> suppresses the secondary trace name box
                 hovertemplate='<b>⚠️ ANOMALIA DETECTADA</b><br>Data: %{x|%d/%m/%Y %H:%M:%S}<br>Preço: %{customdata[0]}<br>Score: %{customdata[1]:.4f}<extra></extra>'
             ))
 
@@ -347,9 +484,18 @@ try:
 
     # Historical Anomalies list section
     st.markdown("---")
-    st.subheader("⚠️ Últimas Anomalias Detectadas (Geral)")
     
-    anomalies_table_df = fetch_recent_anomalies(limit=15)
+    col_header1, col_header2 = st.columns([3, 1])
+    with col_header1:
+        st.subheader("Últimas Anomalias Detectadas (Geral)")
+    with col_header2:
+        filter_coin = st.selectbox(
+            "Filtrar por Cripto:",
+            ["Todas"] + list(coins_df["name"].unique()),
+            key="table_coin_filter"
+        )
+    
+    anomalies_table_df = fetch_recent_anomalies(limit=30)
     
     if anomalies_table_df.empty:
         st.info("Nenhuma anomalia registrada no banco de dados até o momento.")
@@ -357,22 +503,45 @@ try:
         multiplier = usd_brl_rate if is_brl else 1.0
         anomalies_display = anomalies_table_df.copy()
         
+        # Apply interactive filter if selected
+        if filter_coin != "Todas":
+            anomalies_display = anomalies_display[anomalies_display["name"] == filter_coin]
+
         # Convert and format current price in selected currency
         anomalies_display["current_price"] = (anomalies_display["current_price"] * multiplier).apply(
             lambda val: format_crypto_price(val, curr_prefix)
         )
         anomalies_display["detected_at"] = to_brasilia_tz(anomalies_display["detected_at"]).dt.strftime('%d/%m/%Y %H:%M:%S')
         anomalies_display["anomaly_score"] = anomalies_display["anomaly_score"].round(4)
+        
+        # Responsive, real dynamic status
         anomalies_display["alert_sent"] = anomalies_display["alert_sent"].apply(
-            lambda x: "📱 WhatsApp Enviado" if x else "⏳ Pendente/Desabilitado"
+            lambda x: "🟢 WhatsApp Enviado" if x else "🟡 Em Fila / Pendente"
         )
         
-        # Rename columns for localized Portuguese headers
-        anomalies_display.columns = [
-            "Moeda", "Símbolo", f"Preço no Alerta ({curr_prefix})", "Score ML", "Data/Hora (Brasília)", "Alerta"
+        # Select and rename columns for display
+        display_cols = ["name", "symbol", "current_price", "anomaly_score", "detected_at", "alert_sent"]
+        anomalies_final = anomalies_display[display_cols].copy()
+        anomalies_final.columns = [
+            "Moeda", "Símbolo", f"Preço no Alerta ({curr_prefix})", "Score ML", "Data/Hora (Brasília)", "Status do Alerta"
         ]
         
-        st.dataframe(anomalies_display, use_container_width=True)
+        # Render clean, responsive table without row index numbers
+        st.dataframe(
+            anomalies_final,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Status do Alerta": st.column_config.TextColumn(
+                    "Status do Alerta",
+                    help="Status de envio do alerta via n8n / WhatsApp",
+                ),
+                "Score ML": st.column_config.NumberColumn(
+                    "Score ML",
+                    format="%.4f"
+                )
+            }
+        )
 
 except Exception as e:
     st.error(f"Erro ao carregar dados do dashboard: {e}")

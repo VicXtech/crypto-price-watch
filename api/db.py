@@ -130,6 +130,17 @@ def insert_anomaly(
     row = result.fetchone()
     return row[0] if row else None
 
+def mark_anomaly_alert_sent(db: Session, anomaly_id: int) -> bool:
+    """
+    Marks an anomaly as alert_sent = True in the database.
+    Called when n8n confirms WhatsApp message dispatch.
+    """
+    query = text("UPDATE anomalies SET alert_sent = TRUE WHERE id = :anomaly_id RETURNING id;")
+    result = db.execute(query, {"anomaly_id": anomaly_id})
+    db.commit()
+    row = result.fetchone()
+    return row is not None
+
 def get_active_coins(db: Session):
     """
     Returns all active coins.
