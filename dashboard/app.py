@@ -282,7 +282,7 @@ def fetch_recent_anomalies(limit=30):
         return pd.read_sql(text(query), conn, params={"limit": limit})
 
 # Streamlit UI Header
-st.title("📈 Crypto Price Watch")
+st.title("Crypto Price Watch")
 st.markdown("Monitoramento inteligente de preços e detecção de anomalias com **Machine Learning**.")
 
 # Sidebar Filters
@@ -330,7 +330,20 @@ try:
     usd_brl_rate = get_usd_brl_rate() if is_brl else 1.0
     
     if is_brl:
-        st.sidebar.info(f"💵 Cotação Comercial: **R$ {usd_brl_rate:.4f}** / USD")
+        st.sidebar.markdown(f"""
+        <div style="
+            background: #161922;
+            border: 1px solid #262b38;
+            border-radius: 10px;
+            padding: 10px 14px;
+            text-align: center;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        ">
+            <div style="font-size: 13px; color: #94a3b8; font-weight: 500; margin-bottom: 3px;">Cotação Comercial:</div>
+            <div style="font-size: 16px; color: #00c0f2; font-weight: 700;">R$ {usd_brl_rate:.4f} / USD</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Refresh Button (Card-like styling, larger text, full solid blue on hover)
     st.sidebar.markdown("---")
@@ -402,14 +415,14 @@ try:
             if is_latest_anomaly:
                 st.metric(
                     label="Status do Preço",
-                    value="⚠️ ANOMALIA",
+                    value="ANOMALIA",
                     delta=f"Score: {latest['anomaly_score']:.4f}",
                     delta_color="inverse"
                 )
             else:
                 st.metric(
                     label="Status do Preço",
-                    value="✅ Normal",
+                    value="Normal",
                     delta="Preço estável"
                 )
 
