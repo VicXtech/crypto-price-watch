@@ -1,0 +1,86 @@
+{
+  "name": "Crypto Price Watch - Daily Model Train",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 23
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "abe074de-ecd0-48b8-8e40-ecdbbd5e528e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://crypto_api:8000/train",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "20d814a8-1039-4941-94e7-d8c77f1de99c",
+      "name": "HTTP Request - Trigger Train"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "default",
+        "chatId": "5511999999999@c.us",
+        "text": "=🚨 *TREINO DISPARADO COM SUCESSO* 🚨\n\nProjeto: crypto-price-watch 💸",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        448,
+        0
+      ],
+      "id": "fe211f48-f5c4-426e-8d8e-ece76f852c0c",
+      "name": "Aviso de Treino Disparado"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Trigger Train",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Trigger Train": {
+      "main": [
+        [
+          {
+            "node": "Aviso de Treino Disparado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

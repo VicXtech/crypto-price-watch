@@ -86,11 +86,11 @@ O banco de dados armazena os dados crus separadamente das métricas calculadas e
    ```
    Isso iniciará:
    - **PostgreSQL**: Porta `5432`
-   - **FastAPI API**: Porta `8000`
+   - **FastAPI API**: Porta `8001` no host (`8000` na rede interna Docker)
    - **Streamlit Dashboard**: Porta `8501`
 
 4. **Verificar os Serviços**:
-   - Healthcheck da API: [http://localhost:8000/health](http://localhost:8000/health)
+   - Healthcheck da API: [http://localhost:8001/health](http://localhost:8001/health) (ou `http://crypto_api:8000/health` entre containers)
    - Dashboard Streamlit: [http://localhost:8501](http://localhost:8501)
 
 ---
@@ -113,7 +113,8 @@ O banco de dados armazena os dados crus separadamente das métricas calculadas e
         "symbol": "BTC",
         "current_price": 68520.10,
         "anomaly_score": -0.0425,
-        "detected_at": "2026-08-25T20:20:00Z"
+        "detected_at": "2026-08-25T20:20:00Z",
+        "detected_at_brasilia": "25/08/2026 17:20:00"
       }
     ]
   }
@@ -122,6 +123,10 @@ O banco de dados armazena os dados crus separadamente das métricas calculadas e
 ### 2. Retreino de Modelos
 - **Endpoint**: `POST /train`
 - **Processamento**: Dispara o script de retreino em segundo plano (`BackgroundTasks`) que analisa a série histórica de cada moeda ativa, filtra moedas com volume de histórico suficiente (`MIN_SAMPLES_TRAIN`) e treina um Isolation Forest exclusivo por moeda. Ao final, atualiza os pesos carregados em memória na API.
+
+### 3. Confirmação de Alerta Entregue (Acknowledge)
+- **Endpoint**: `POST /anomalies/{anomaly_id}/acknowledge`
+- **Processamento**: Acionado pelo n8n após o disparo bem-sucedido da mensagem no WhatsApp via nó WAHA. Atualiza o registro da anomalia com `alert_sent = TRUE`, garantindo rastreabilidade e auditoria ponta a ponta.
 
 ---
 

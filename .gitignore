@@ -220,3 +220,6 @@ __marimo__/
 # Machine Learning models
 *.pkl
 *.joblib
+
+# Documentação interna de desenvolvimento / planejamento
+internal_docs/

@@ -1,0 +1,323 @@
+{
+  "name": "Crypto Price Watch - Main Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -144,
+        32
+      ],
+      "id": "fdbf3edf-7bef-4e67-92d3-4b17a0854c21",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.coingecko.com/api/v3/coins/markets",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "bitcoin,ethereum,solana,pepe,sui"
+            },
+            {
+              "name": "vs_currency",
+              "value": "usd"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        80,
+        32
+      ],
+      "id": "fabffbd2-2c4d-48cc-8938-6a69e879e7c7",
+      "name": "Coins Markets"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "777bc3c5-4d93-4bbe-b06d-2640c344f726",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "0482d6d4-d665-4f5e-8300-fa83a8d45d25",
+              "name": "symbol",
+              "value": "={{ $json.symbol.toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "2c5e2d0c-1aa7-4203-b8a2-88078528ba67",
+              "name": "name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e4e0b198-d7e0-4dbc-96a9-6a5d226a6b6c",
+              "name": "current_price",
+              "value": "={{ $json.current_price }}",
+              "type": "number"
+            },
+            {
+              "id": "334fea90-8da3-4b88-83df-2e646cc042ec",
+              "name": "market_cap",
+              "value": "={{ $json.market_cap }}",
+              "type": "number"
+            },
+            {
+              "id": "83374fe5-4b4b-4075-9b58-bc1818c22b0a",
+              "name": "total_volume",
+              "value": "={{ $json.total_volume }}",
+              "type": "number"
+            },
+            {
+              "id": "ba35c941-2d0b-4c94-821e-6811d4e99702",
+              "name": "collected_at",
+              "value": "={{ $('Schedule Trigger').item.json.timestamp }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        304,
+        32
+      ],
+      "id": "8e649d27-c276-4a2d-b8c2-5a62c7669fad",
+      "name": "Edit Fields",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://crypto_api:8000/ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        32
+      ],
+      "id": "cb9ce5f5-5b65-447f-836f-183b508f9872",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "346816d5-b28d-4ba0-aaf9-1293a354cf89",
+              "leftValue": "={{ $json.anomalies_detected.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        32
+      ],
+      "id": "d651387e-b440-4bed-8cb7-6d1afe9beb63",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        976,
+        128
+      ],
+      "id": "6d3297f9-e9d1-4ee1-9f83-6f93492e40c6",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "anomalies_detected",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        976,
+        -64
+      ],
+      "id": "bf452031-ad94-448d-9618-614ed16c5b03",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "default",
+        "chatId": "5511999999999@c.us",
+        "text": "=⚠️ *ALERTA DE ANOMALIA DE PREÇO* ⚠️\n\nA criptomoeda *{{ $json.symbol }}* ({{ $json.coingecko_id }}) apresentou um comportamento de preço fora do comum!\n\n💵 *Preço no Alerta:* ${{ $json.current_price >= 1 ? $json.current_price.toFixed(2) : $json.current_price }}\n📊 *Score do Isolation Forest:* {{ $json.anomaly_score.toFixed(4) }}\n🕒 *Horário (Brasília):* {{ $json.detected_at_brasilia }}\n\n_Verifique o painel do Streamlit para mais detalhes._\n",
+        "requestOptions": {}
+      },
+      "type": "@devlikeapro/n8n-nodes-waha.WAHA",
+      "typeVersion": 202502,
+      "position": [
+        1184,
+        -64
+      ],
+      "id": "742472bc-3bb5-4e94-beab-b2baffe06e07",
+      "name": "Aviso de Anomalia Detectada"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://crypto_api:8000/anomalies/{{ $('Split Out').item.json.anomaly_id }}/acknowledge",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1392,
+        -64
+      ],
+      "id": "b61f50af-ac06-4159-bebd-000d22328e9c",
+      "name": "Acknowledge Anomaly"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Coins Markets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coins Markets": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Aviso de Anomalia Detectada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso de Anomalia Detectada": {
+      "main": [
+        [
+          {
+            "node": "Acknowledge Anomaly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
